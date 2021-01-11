@@ -14,7 +14,7 @@
         "metadata": {
           "description": "EXISTING Availability Set name for Firewalls"
         },
-        "defaultValue": " testAset"
+        "defaultValue": "testAset"
       },
       "FW1-IPManagement": {
         "type": "string",
