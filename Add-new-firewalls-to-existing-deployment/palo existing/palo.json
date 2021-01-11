@@ -123,6 +123,7 @@
       }
     },
     "variables": {
+      "osDiskType": "Standard_LRS",
       "storageAccountName": "[concat('bootdiags', uniquestring(resourceGroup().id))]",
       "vnetID": "[resourceId(parameters('virtualNetworkExistingRGName'), 'Microsoft.Network/virtualNetworks', parameters('virtualNetworkName'))]",
       "subnet0Ref": "[concat(variables('vnetID'),'/subnets/',parameters('managementSubnetName'))]",
@@ -260,10 +261,10 @@
               "version": "latest"
             },
             "osDisk": {
-              "createOption": "FromImage",
-              "managedDisk": {
-                "storageAccountType": "StandardSSD_LRS"
-              }
+                "createOption": "fromImage",
+                "managedDisk": {
+                    "storageAccountType": "[variables('osDiskType')]"
+                }
             },
             "dataDisks": [
               {
