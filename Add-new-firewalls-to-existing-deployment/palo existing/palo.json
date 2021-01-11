@@ -59,31 +59,6 @@
         },
         "defaultValue": "Standard_DS3_v2"
       },
-      "imageVersion": {
-        "type": "string",
-        "allowedValues": [
-          "8.0.0",
-          "8.1.0",
-          "8.1.9",
-          "latest"
-        ],
-        "metadata": {
-          "description": "PAN OS Version"
-        },
-        "defaultValue": "latest"
-      },
-      "imageSku": {
-        "type": "string",
-        "allowedValues": [
-          "byol",
-          "bundle1",
-          "bundle2"
-        ],
-        "metadata": {
-          "description": "Firewall License Model"
-        },
-        "defaultValue": "byol"
-      },
       "virtualNetworkName": {
         "type": "string",
         "metadata": {
@@ -141,6 +116,7 @@
       }
     },
     "variables": {
+      "storageAccountName": "[concat('bootdiags', uniquestring(resourceGroup().id))]",
       "vnetID": "[resourceId(parameters('virtualNetworkExistingRGName'), 'Microsoft.Network/virtualNetworks', parameters('virtualNetworkName'))]",
       "subnet0Ref": "[concat(variables('vnetID'),'/subnets/',parameters('managementSubnetName'))]",
       "subnet1Ref": "[concat(variables('vnetID'),'/subnets/',parameters('untrustSubnetName'))]",
@@ -156,6 +132,17 @@
       "fw1_interface3_ip": "[parameters('FW1-IP-HA2')]"
     },
     "resources": [
+        {
+            "type": "Microsoft.Storage/storageAccounts",
+            "apiVersion": "2019-06-01",
+            "name": "[variables('storageAccountName')]",
+            "location": "[parameters('location')]",
+            "sku": {
+              "name": "Standard_LRS"
+            },
+            "kind": "Storage",
+            "properties": {}
+          }, 
       {
         "name": "[variables('fwManagementNic')]",
         "type": "Microsoft.Network/networkInterfaces",
@@ -268,7 +255,7 @@
             "osDisk": {
               "createOption": "FromImage",
               "managedDisk": {
-                "storageAccountType": "StandardHDD_LRS"
+                "storageAccountType": "StandardSSD_LRS"
               }
             },
             "dataDisks": [
@@ -307,13 +294,20 @@
               }
 
             ]
+          },
+          "diagnosticsProfile": {
+            "bootDiagnostics": {
+              "enabled": true,
+              "storageUri": "[reference(resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))).primaryEndpoints.blob]"
+            }
           }
         },
         "dependsOn": [
           "[resourceId('Microsoft.Network/networkInterfaces', variables('fwVpnNic'))]",
           "[resourceId('Microsoft.Network/networkInterfaces', variables('fwManagementNic'))]",
           "[resourceId('Microsoft.Network/networkInterfaces', variables('fwUntrustNic'))]",
-          "[resourceId('Microsoft.Network/networkInterfaces', variables('fwTrustNic'))]"
+          "[resourceId('Microsoft.Network/networkInterfaces', variables('fwTrustNic'))]",
+          "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
         ]
       }
     ]
