@@ -1,0 +1,319 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.13",
+    "parameters": {
+      "vmName": {
+        "type": "string",
+        "metadata": {
+          "description": "Name of VM-Series FW in the Azure portal"
+        },
+        "defaultValue": "testvm1"
+      },
+      "fwAvSet": {
+        "type": "string",
+        "metadata": {
+          "description": "EXISTING Availability Set name for Firewalls"
+        },
+        "defaultValue": " testAset"
+      },
+      "FW1-IPManagement": {
+        "type": "string",
+        "defaultValue": "10.0.0.9",
+        "metadata": {
+            "description": "Enter a private IP address for active firewall management interface."
+        }
+     },
+      "FW1-IPDataplane1": {
+        "type": "string",
+        "defaultValue": "10.0.1.9",
+        "metadata": {
+            "description": "Enter a private IP address for active firewall Frontend interface."
+        }
+     },
+     "FW1-IPDataplane2": {
+        "type": "string",
+        "defaultValue": "10.0.2.9",
+        "metadata": {
+            "description": "Enter a private IP address for active firewall Backend interface."
+        }
+     },
+     "FW1-IP-HA2": {
+        "type": "string",
+        "defaultValue": "10.0.3.9",
+        "metadata": {
+            "description": "Enter a private IP address for active firewall HA2 interface."
+        }
+     },
+      "vmSize": {
+        "type": "string",
+        "allowedValues": [
+          "Standard_DS3_v2",
+          "Standard_DS4_v2",
+          "Standard_DS5_v2",
+          "Standard_D3_v2",
+          "Standard_D4_v2",
+          "Standard_D5_v2" 
+        ],
+        "metadata": {
+          "description": "Azure VM size for VM-Series"
+        },
+        "defaultValue": "Standard_DS3_v2"
+      },
+      "imageVersion": {
+        "type": "string",
+        "allowedValues": [
+          "8.0.0",
+          "8.1.0",
+          "8.1.9",
+          "latest"
+        ],
+        "metadata": {
+          "description": "PAN OS Version"
+        },
+        "defaultValue": "latest"
+      },
+      "imageSku": {
+        "type": "string",
+        "allowedValues": [
+          "byol",
+          "bundle1",
+          "bundle2"
+        ],
+        "metadata": {
+          "description": "Firewall License Model"
+        },
+        "defaultValue": "bundle2"
+      },
+      "virtualNetworkName": {
+        "type": "string",
+        "metadata": {
+          "description": "Name of the EXISTING Virtual Network (VNET)"
+        },
+        "defaultValue": "virtualNetwork"
+      },
+      "virtualNetworkExistingRGName": {
+        "type": "string",
+        "defaultValue": "testfordev",
+        "metadata": {
+          "description": "Name of resource group of EXISTING VNET"
+        }
+      },
+      "managementSubnetName": {
+        "type": "string",
+        "defaultValue": "subnet-1",
+        "metadata": {
+          "description": "EXISTING Subnet for Management"
+        }
+      },
+      "untrustSubnetName": {
+        "type": "string",
+        "defaultValue": "subnet-2",
+        "metadata": {
+          "description": "EXISTING Subnet for Frontend"
+        }
+      },
+      "trustSubnetName": {
+        "type": "string",
+        "defaultValue": "subnet-3",
+        "metadata": {
+          "description": "EXISTING Subnet for Backend"
+        }
+      },
+      "vpnSubnetName": {
+          "type": "string",
+          "defaultValue": "subnet-4",
+          "metadata": {
+            "description": "EXISTING Subnet for HA Subnet"
+          }
+      },
+      "Username": {
+        "type": "string",
+        "metadata": {
+          "description": "Username of the administrator account of VM-Series"
+        }
+      },
+      "Password": {
+        "type": "securestring",
+        "defaultValue": "",
+        "metadata": {
+          "description": "Password for the administrator account of VM-Series"
+        }
+      }
+    },
+    "variables": {
+      "vnetID": "[resourceId(parameters('virtualNetworkExistingRGName'), 'Microsoft.Network/virtualNetworks', parameters('virtualNetworkName'))]",
+      "subnet0Ref": "[concat(variables('vnetID'),'/subnets/',parameters('managementSubnetName'))]",
+      "subnet1Ref": "[concat(variables('vnetID'),'/subnets/',parameters('untrustSubnetName'))]",
+      "subnet2Ref": "[concat(variables('vnetID'),'/subnets/',parameters('trustSubnetName'))]",
+      "subnet3Ref": "[concat(variables('vnetID'),'/subnets/',parameters('vpnSubnetName'))]",
+      "fwManagementNic": "[concat(parameters('vmName'), '-MGMTNic')]",
+      "fwUntrustNic": "[concat(parameters('vmName'), '-FrontEndNic')]",
+      "fwTrustNic": "[concat(parameters('vmName'), '-BackEndnic')]",
+      "fwVpnNic": "[concat(parameters('vmName'), '-HANic')]",
+      "fw1_interface0_ip": "[parameters('FW1-IPManagement')]",
+      "fw1_interface1_ip": "[parameters('FW1-IPDataplane1')]",
+      "fw1_interface2_ip": "[parameters('FW1-IPDataplane2')]",
+      "fw1_interface3_ip": "[parameters('FW1-IP-HA2')]"
+    },
+    "resources": [
+      {
+        "name": "[variables('fwManagementNic')]",
+        "type": "Microsoft.Network/networkInterfaces",
+        "location": "[resourceGroup().location]",
+        "dependsOn": [],
+        "apiVersion": "2015-06-15",
+        "properties": {
+          "ipConfigurations": [
+            {
+              "name": "ipconfig-mgmt",
+              "properties": {
+                "privateIpAddress": "[variables('fw1_interface0_ip')]",
+                "privateIPAllocationMethod": "Static",
+                "subnet": {
+                  "id": "[variables('subnet0Ref')]"
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "name": "[variables('fwUntrustNic')]",
+        "type": "Microsoft.Network/networkInterfaces",
+        "location": "[resourceGroup().location]",
+        "dependsOn": [],
+        "apiVersion": "2015-06-15",
+        "properties": {
+          "enableIPForwarding": true,
+          "ipConfigurations": [
+            {
+              "name": "ipconfig-untrust",
+              "properties": {
+                "privateIpAddress": "[variables('fw1_interface1_ip')]",
+                "privateIPAllocationMethod": "Static",
+                "subnet": {
+                  "id": "[variables('subnet1Ref')]"
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "name": "[variables('fwTrustNic')]",
+        "type": "Microsoft.Network/networkInterfaces",
+        "location": "[resourceGroup().location]",
+        "apiVersion": "2015-06-15",
+        "properties": {
+          "enableIPForwarding": true,
+          "ipConfigurations": [
+            {
+              "name": "ipconfig-trust",
+              "properties": {
+                "privateIpAddress": "[variables('fw1_interface2_ip')]",
+                "privateIPAllocationMethod": "Static",
+                "subnet": {
+                  "id": "[variables('subnet2Ref')]"
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+          "name": "[variables('fwVpnNic')]",
+          "type": "Microsoft.Network/networkInterfaces",
+          "location": "[resourceGroup().location]",
+          "apiVersion": "2015-06-15",
+          "properties": {
+            "enableIPForwarding": true,
+            "ipConfigurations": [
+              {
+                "name": "ipconfig-trust",
+                "properties": {
+                "privateIpAddress": "[variables('fw1_interface3_ip')]",
+                  "privateIPAllocationMethod": "Static",
+                  "subnet": {
+                    "id": "[variables('subnet3Ref')]"
+                  }
+                }
+              }
+            ]
+          }
+        },
+      {
+        "apiVersion": "2016-04-30-preview",
+        "type": "Microsoft.Compute/virtualMachines",
+        "name": "[parameters('vmName')]",
+        "location": "[resourceGroup().location]",
+        "plan": {
+          "name": "[parameters('imageSku')]",
+          "product": "vmseries1",
+          "publisher": "paloaltonetworks"
+        },
+        "properties": {
+          "availabilitySet": {
+            "id": "[resourceId('Microsoft.Compute/availabilitySets', parameters('fwAvSet'))]"
+          },
+          "hardwareProfile": {
+            "vmSize": "[parameters('vmSize')]"
+          },
+          "osProfile": {
+            "computerName": "[parameters('vmName')]",
+            "adminUsername": "[parameters('Username')]",
+            "adminPassword": "[parameters('Password')]"
+          },
+          "storageProfile": {
+            "imageReference": {
+              "publisher": "paloaltonetworks",
+              "offer": "vmseries1",
+              "sku": "[parameters('imageSku')]",
+              "version": "[parameters('imageVersion')]"
+            },
+            "osDisk": {
+              "managedDisk": {
+                "storageAccountType": "Premium_LRS"
+              },
+              "caching": "ReadWrite",
+              "createOption": "FromImage"
+            }
+          },
+          "networkProfile": {
+            "networkInterfaces": [
+              {
+                "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('fwManagementNic'))]",
+                "properties": {
+                  "primary": true
+                }
+              },
+              {
+                "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('fwUntrustNic'))]",
+                "properties": {
+                  "primary": false
+                }
+              },
+              {
+                "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('fwTrustNic'))]",
+                "properties": {
+                  "primary": false
+                }
+              },
+              {
+                "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('fwVpnNic'))]",
+                "properties": {
+                  "primary": false
+                }
+              }
+
+            ]
+          }
+        },
+        "dependsOn": [
+          "[resourceId('Microsoft.Network/networkInterfaces', variables('fwVpnNic'))]",
+          "[resourceId('Microsoft.Network/networkInterfaces', variables('fwManagementNic'))]",
+          "[resourceId('Microsoft.Network/networkInterfaces', variables('fwUntrustNic'))]",
+          "[resourceId('Microsoft.Network/networkInterfaces', variables('fwTrustNic'))]"
+        ]
+      }
+    ]
+  }
