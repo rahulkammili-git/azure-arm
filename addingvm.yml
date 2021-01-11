@@ -1,0 +1,27 @@
+variables:
+  ARM_PASS: $(adminPass)
+trigger:
+- main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+steps:
+- task: CopyFiles@2
+  inputs:
+    SourceFolder: 'Add-new-firewalls-to-existing-deployment/palo existing'
+    Contents: '**'
+    TargetFolder: '$(Build.ArtifactStagingDirectory)'
+- task: AzureResourceManagerTemplateDeployment@3
+  inputs:
+    deploymentScope: 'Resource Group'
+    azureResourceManagerConnection: 'connectionToAzure'
+    subscriptionId: 'e089188c-f85b-4db5-a221-856eda42aa74'
+    action: 'Create Or Update Resource Group'
+    resourceGroupName: 'testfordev'
+    location: 'North Europe'
+    templateLocation: 'Linked artifact'
+    csmFile: '$(Build.ArtifactStagingDirectory)/palo.json'
+    csmParametersFile: '$(Build.ArtifactStagingDirectory)/parameters.json'
+    overrideParameters: '-Username $(adminUser) -Password $(ARM_PASS)'
+    deploymentMode: 'Incremental'
